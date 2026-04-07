@@ -1,6 +1,7 @@
 const inputField = document.getElementById('user-input');
 const sendBtn = document.getElementById('send-btn');
 const messagesContainer = document.getElementById('messages');
+const MAX_INTERACTIONS = 5;
 
 const fileInput = document.getElementById("file-input");
 
@@ -59,24 +60,42 @@ async function sendMessage(inputElement) {
     }
 }
 
-async function loadHistory() {
-    try {
-        const response = await fetch('/history', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ participantId: participantId })
-        });
+// Function to fetch and load existing conversation history
+async function loadConversationHistory() {
+    const response = await fetch('/history', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+    // Send participantID to the server and maximum conversation exchanges
+                body: JSON.stringify({ participantID, limit: MAX_INTERACTIONS })
+            });
+    const data = await response.json();
+    if (data.interactions && data.interactions.length > 0) {
+        data.interactions.forEach(interaction => {
+            const userMessageDiv = document.createElement('div');
+            userMessageDiv.textContent = `You: ${interaction.userInput}`;
+            document.getElementById('messages').appendChild(userMessageDiv);
 
-        const interactions = await response.json();
+            const botMessageDiv = document.createElement('div');
+            botMessageDiv.textContent = `Bot: ${interaction.botResponse}`;
+            document.getElementById('messages').appendChild(botMessageDiv);
 
-        interactions.forEach(entry => {
-            messagesContainer.innerHTML += `<p>You: ${entry.userInput}</p>`;
-            messagesContainer.innerHTML += `<p>Bot: ${entry.botResponse}</p>`;
-        });
-    } catch (err) {
-        console.error('Error loading history:', err);
-    }
+    // Add to conversation history
+    conversationHistory.push({ role: 'user', content: interaction.userInput });
+    conversationHistory.push({ role: 'assistant', content: interaction.botResponse });
+    });
+  }
 }
+    // Load history when chat loads
+    window.onload = loadConversationHistory;
+
+// Inside event listener on form submission...
+const recentHistory = conversationHistory.slice(-10);
+const payload = recentHistory.length === 0
+// If no history, send only participantID with current user input
+? { input: userInput, participantID, systemID, retrievalMethod }
+// Send participantID with history and input
+: { history: recentHistory, input: userInput, participantID,
+systemID, retrievalMethod };
 
 const sendButton = document.getElementById("send-btn");
 sendButton.addEventListener("click", (event) => {

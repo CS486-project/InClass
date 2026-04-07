@@ -20,9 +20,15 @@
             if (!participantId) {
                 alert('Please enter a Participant ID');
             } else {
+                // Save the Participant ID in localStorage
                 localStorage.setItem('participantId', participantId);
                 window.location.href = '/chat';
             }
+            // Assigning participant to a system-- SID
+            // odd Participant ID → systemID=1 and even Participant ID → systemID=2
+            const systemID = parseInt(participantID) % 2 === 1 ? 1 : 2;
+            // Redirect to unique URL with participantID and systemID
+            window.location.href = `/chat.html?participantID=${participantID}&systemID=${systemID}`;
         });
     </script>
 </body>
