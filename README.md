@@ -1,1 +1,1 @@
-# InClass
+# CS486-InClass
