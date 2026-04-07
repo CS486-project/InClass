@@ -5,11 +5,18 @@ const MAX_INTERACTIONS = 5;
 
 const fileInput = document.getElementById("file-input");
 
-const participantId = localStorage.getItem('participantId');
+// Read the query string from the current page URL so we can extract values like participantID and systemID
+const params = new URLSearchParams(window.location.search);
 
-if (!participantId) {
-    alert('No participant ID found. Please go back to the homepage and enter your ID.');
-    window.location.href = '/';
+// Retrieve participantID and system ID from localStorage
+const participantID = params.get('participantID') || localStorage.getItem('participantID');
+const systemID = params.get('systemID');
+
+// Alert and prompt if no participantID
+if (!participantID) {
+  alert('Please enter a participant ID.');
+  // Redirect to login if no participantID is set
+  window.location.href = '/';
 }
 
 async function sendMessage(inputElement) {
@@ -24,7 +31,7 @@ async function sendMessage(inputElement) {
             const response = await fetch('/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ participantId: participantId, message: trimmedInput, retrievalMethod: retrievalDropdown.value })
+                body: JSON.stringify({ participantID: participantID, message: trimmedInput, retrievalMethod: retrievalDropdown.value })
             });
 
             if (!response.ok) {
@@ -63,12 +70,13 @@ async function sendMessage(inputElement) {
 // Function to fetch and load existing conversation history
 async function loadConversationHistory() {
     const response = await fetch('/history', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-    // Send participantID to the server and maximum conversation exchanges
-                body: JSON.stringify({ participantID, limit: MAX_INTERACTIONS })
-            });
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // Send participantID to the server and maximum conversation exchanges
+        body: JSON.stringify({ participantID, limit: MAX_INTERACTIONS })
+    });
     const data = await response.json();
+
     if (data.interactions && data.interactions.length > 0) {
         data.interactions.forEach(interaction => {
             const userMessageDiv = document.createElement('div');
@@ -79,23 +87,24 @@ async function loadConversationHistory() {
             botMessageDiv.textContent = `Bot: ${interaction.botResponse}`;
             document.getElementById('messages').appendChild(botMessageDiv);
 
-    // Add to conversation history
-    conversationHistory.push({ role: 'user', content: interaction.userInput });
-    conversationHistory.push({ role: 'assistant', content: interaction.botResponse });
-    });
-  }
+            // Add to conversation history
+            conversationHistory.push({ role: 'user', content: interaction.userInput });
+            conversationHistory.push({ role: 'assistant', content: interaction.botResponse });
+        });
+    }
 }
-    // Load history when chat loads
-    window.onload = loadConversationHistory;
+
+// Load history when chat loads
+window.onload = loadConversationHistory;
 
 // Inside event listener on form submission...
 const recentHistory = conversationHistory.slice(-10);
+
 const payload = recentHistory.length === 0
-// If no history, send only participantID with current user input
-? { input: userInput, participantID, systemID, retrievalMethod }
-// Send participantID with history and input
-: { history: recentHistory, input: userInput, participantID,
-systemID, retrievalMethod };
+    // If no history, send only participantID with current user input
+    ? { input: userInput, participantID, systemID, retrievalMethod }
+    // Send participantID with history and input
+    : { history: recentHistory, input: userInput, participantID, systemID, retrievalMethod };
 
 const sendButton = document.getElementById("send-btn");
 sendButton.addEventListener("click", (event) => {
@@ -138,7 +147,7 @@ function logEvent(type, element) {
     fetch('/log-event', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ participantId: participantId, eventType: type, elementName: element, timestamp: new Date() })
+        body: JSON.stringify({ participantID: participantID, eventType: type, elementName: element, timestamp: new Date() })
     }).catch(error => {
         console.error('Error logging event:', error);
     });
@@ -203,4 +212,4 @@ async function loadDocuments() {
     }
 }
 
-loadHistory();loadDocuments();
+loadDocuments();

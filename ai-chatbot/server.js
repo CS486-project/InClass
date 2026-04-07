@@ -19,6 +19,7 @@ const openai = new OpenAI({
 });
 
 const retrievalService = require('./services/retrievalService');
+const confidenceCalculator = require("./services/confidenceCalculator");
 
 const PORT = process.env.PORT || 3000;
 
@@ -43,15 +44,26 @@ app.get('/chat', (req, res) => {
 
 const Interaction = require('./models/Interaction'); // Import Interaction model
 
+// Define a POST route for chat interactions
+// openai.createCompletion is deprecated, change to
+// completions.create()
 app.post('/chat', async (req, res) => {
-    const {participantId, message, retrievalMethod} = req.body;
+    // 1. Receive user input from client script.js
+    // Also pass participantID
+    const { history = [], input: userInput, participantID, systemID, retrievalMethod = 'semantic'} =
+req.body;
+  
+    // Check for participantID
+    if (!participantID) {
+      return res.status(400).send('Participant ID is required');
+    }
 
-    if (!message) {
+    if (!userInput) {
         return res.status(400).send('Message is required');
     }
 
     try {
-        const topK = await retrievalService.retrieve(message, {
+        const topK = await retrievalService.retrieve(userInput, {
           method: retrievalMethod,
           topK: 3
         });
@@ -67,18 +79,26 @@ app.post('/chat', async (req, res) => {
         ${context}
     
         QUESTION:
-        ${message}`;
+        ${userInput}`;
+
+        const safeHistory = Array.isArray(history)
+          ? history
+            .filter(m => m && (m.role === 'user' || m.role === 'assistant'))
+            .map(m => ({ role: m.role, content: String(m.content ?? '') }))
+          : [];
+        const input = safeHistory.length === 0
+          ? [{ role: 'user', content: prompt }]
+          : [...safeHistory, { role: 'user', content: prompt }];
+        // OpenAI call uses the last N turns in `history
     
         const completion = await openai.chat.completions.create({
           model: "gpt-4o-mini",
-          messages: [{ role: "user", content: prompt }]
+          messages: input
         });
         
         const botResponse = completion.choices[0].message.content.trim();
         
         const retrievedDocuments = topK;
-        
-        const confidenceCalculator = require("./services/confidenceCalculator");
         
         const confidenceMetrics = confidenceCalculator.calculate({
           retrievedDocs: topK,
@@ -87,8 +107,8 @@ app.post('/chat', async (req, res) => {
 
         // Log the interaction to MongoDB
         const interaction = new Interaction({
-            participantId: participantId,
-            userInput: message,
+            participantID: participantID,
+            userInput: userInput,
             botResponse: botResponse,
             retrievalMethod: retrievalMethod,
             retrievedDocuments: retrievedDocuments.map((d) => ({
@@ -113,11 +133,16 @@ app.post('/chat', async (req, res) => {
 const EventLog = require('./models/EventLog'); // Import EventLog model
 
 app.post('/log-event', async (req, res) => {
-    const { participantId, eventType, elementName, timestamp } = req.body;
+    const { participantD, eventType, elementName, timestamp } = req.body;
+
+    // Check for participantID
+    if (!participantID) {
+        return res.status(400).send('Participant ID is required');
+    }
 
     try {
         // Log the event to MongoDB
-        const event = new EventLog({ participantId, eventType, elementName, timestamp}); 
+        const event = new EventLog({ participantID, eventType, elementName, timestamp}); 
         await event.save();
         res.status(200).send('Event logged successfully');
         
@@ -128,16 +153,24 @@ app.post('/log-event', async (req, res) => {
 });
 
 app.post('/history', async (req, res) => {
-    const { participantId } = req.body;
-    
+    const { participantID } = req.body;
+
+    if (!participantID) {
+      return res.status(400).send('Participant ID is required');
+    }
+
     try {
-        const interactions = await Interaction.find({ participantId }).sort({ timestamp: 1 });
-        res.json(interactions); // sends back array of { userInput, botResponse, timestamp }
+        // Fetch all interactions from the database for the given
+        // participantID and sort by time so they are in order for displaying
+        const interactions = await Interaction.find({ participantID }).sort({ timestamp: 1});
+        // Send the conversation history back to the client to display
+        res.json({ interactions });
     } catch (error) {
-        console.error('Error fetching history:', error.message);
-        res.status(500).send('Internal Server Error');
+        console.error('Error fetching conversation history:', error.message);
+        res.status(500).send('Server Error');
     }
 });
+        
 
 const multer = require("multer");
 const Document = require("./models/Document"); // Import Document model

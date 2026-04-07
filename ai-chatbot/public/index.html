@@ -8,26 +8,25 @@
 <body id="home">
     <h1>AI Chatbot</h1>
     <p>Welcome! This chatbot uses OpenAI to answer your questions and remembers your conversation history across sessions.</p>
-    <div id="participant-section">
-        <label>Enter your Participant ID:</label>
-        <input type="text" id="participant-input" placeholder="e.g. user123">
-        <button id="start-btn">Start Chatting</button>
-    </div>
+    <form id="participant-form">
+        <label for="participantID">Enter your Participant ID:</label>
+        <input type="text" id="participantID" name="participantID" required>
+        <button type="submit">Start Chat</button>
+    </form>
 
     <script>
-        document.getElementById('start-btn').addEventListener('click', () => {
-            const participantId = document.getElementById('participant-input').value.trim();
-            if (!participantId) {
-                alert('Please enter a Participant ID');
-            } else {
-                // Save the Participant ID in localStorage
-                localStorage.setItem('participantId', participantId);
-                window.location.href = '/chat';
-            }
-            // Assigning participant to a system-- SID
-            // odd Participant ID → systemID=1 and even Participant ID → systemID=2
+        document.getElementById('participant-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const participantID = document.getElementById('participantID').value;
+
+            // Save the Participant ID in localStorage
+            localStorage.setItem('participantID', participantID);
+
+            // Determine which system the participant should see
             const systemID = parseInt(participantID) % 2 === 1 ? 1 : 2;
-            // Redirect to unique URL with participantID and systemID
+
+            // Redirect to chat page with participantID and systemID in the URL
             window.location.href = `/chat.html?participantID=${participantID}&systemID=${systemID}`;
         });
     </script>
