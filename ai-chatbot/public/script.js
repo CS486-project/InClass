@@ -2,6 +2,7 @@ const inputField = document.getElementById('user-input');
 const sendBtn = document.getElementById('send-btn');
 const messagesContainer = document.getElementById('messages');
 const MAX_INTERACTIONS = 5;
+let conversationHistory = [];
 
 const fileInput = document.getElementById("file-input");
 
@@ -23,16 +24,36 @@ async function sendMessage(inputElement) {
     const trimmedInput = inputElement.value.trim();
     if (trimmedInput === "") {
         alert("Please enter a message");
-    } else {
-        messagesContainer.innerHTML += `<p>${trimmedInput}</p>`;
-        inputElement.value = '';
+        return;
+    }
 
-        try {
-            const response = await fetch('/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ participantID: participantID, message: trimmedInput, retrievalMethod: retrievalDropdown.value })
-            });
+    // Add user message to UI
+    messagesContainer.innerHTML += `<p>You: ${trimmedInput}</p>`;
+    inputElement.value = '';
+
+    // Add to conversation history
+    conversationHistory.push({ role: 'user', content: trimmedInput });
+
+    // Get recent history (last N messages, where N = MAX_INTERACTIONS * 2 for user+bot pairs)
+    const recentHistory = conversationHistory.slice(-MAX_INTERACTIONS * 2);
+
+    // Get retrieval method
+    const retrievalMethod = retrievalDropdown ? retrievalDropdown.value : 'semantic';
+
+    try {
+        const payload = {
+            participantID: participantID,
+            input: trimmedInput,
+            history: recentHistory,
+            systemID: parseInt(systemID) || 1,
+            retrievalMethod: retrievalMethod
+        };
+
+        const response = await fetch('/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
 
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -40,6 +61,9 @@ async function sendMessage(inputElement) {
 
             const data = await response.json();
             messagesContainer.innerHTML += `<p>Bot: ${data.botResponse}</p>`;
+
+            // Add bot response to conversation history
+            conversationHistory.push({ role: 'assistant', content: data.botResponse });
 
             // Display confidence metrics
             if (data.confidenceMetrics) {
@@ -65,7 +89,6 @@ async function sendMessage(inputElement) {
             messagesContainer.innerHTML += `<p>Error: Failed to get response from bot</p>`;
         }
     }
-}
 
 // Function to fetch and load existing conversation history
 async function loadConversationHistory() {
@@ -96,15 +119,6 @@ async function loadConversationHistory() {
 
 // Load history when chat loads
 window.onload = loadConversationHistory;
-
-// Inside event listener on form submission...
-const recentHistory = conversationHistory.slice(-10);
-
-const payload = recentHistory.length === 0
-    // If no history, send only participantID with current user input
-    ? { input: userInput, participantID, systemID, retrievalMethod }
-    // Send participantID with history and input
-    : { history: recentHistory, input: userInput, participantID, systemID, retrievalMethod };
 
 const sendButton = document.getElementById("send-btn");
 sendButton.addEventListener("click", (event) => {
@@ -154,16 +168,16 @@ function logEvent(type, element) {
 }
 
 document.getElementById("upload-btn").addEventListener("click", async (event) => {
-    console.log("Selected file: ", fileInput.files[0].name);
     event.preventDefault();
 
     const fileInput = document.getElementById("file-input");
     const file = fileInput.files[0];
-  
+
     if (!file) {
         alert("Choose a file first.");
         return;
     }
+    console.log("Selected file: ", file.name);
   
     const formData = new FormData();
     formData.append("document", file);
@@ -199,7 +213,6 @@ async function loadDocuments() {
             placeholder.style.display = '';
             return;
         }
-
         placeholder.style.display = 'none';
     
         docs.forEach((doc) => {
@@ -211,5 +224,4 @@ async function loadDocuments() {
         console.error('loadDocuments:', e);
     }
 }
-
 loadDocuments();

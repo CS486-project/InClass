@@ -17,6 +17,7 @@ const RetrievedDocumentSchema = new Schema({
 
 const InteractionSchema = new Schema({
     participantID: String, // Unique identifier for the user
+    systemID: { type: Number }, // System ID (1 for baseline, 2 for enhanced)
     userInput: String, // Store the user's message
     botResponse: String, // Store the bot's response
     timestamp: { type: Date, default: Date.now }, // Log the time of interaction

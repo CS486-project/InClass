@@ -108,6 +108,7 @@ req.body;
         // Log the interaction to MongoDB
         const interaction = new Interaction({
             participantID: participantID,
+            systemID: systemID,
             userInput: userInput,
             botResponse: botResponse,
             retrievalMethod: retrievalMethod,
@@ -133,7 +134,7 @@ req.body;
 const EventLog = require('./models/EventLog'); // Import EventLog model
 
 app.post('/log-event', async (req, res) => {
-    const { participantD, eventType, elementName, timestamp } = req.body;
+    const { participantID, eventType, elementName, timestamp } = req.body;
 
     // Check for participantID
     if (!participantID) {
@@ -153,16 +154,19 @@ app.post('/log-event', async (req, res) => {
 });
 
 app.post('/history', async (req, res) => {
-    const { participantID } = req.body;
+    const { participantID, limit = 5 } = req.body;
 
     if (!participantID) {
       return res.status(400).send('Participant ID is required');
     }
 
     try {
-        // Fetch all interactions from the database for the given
+        // Fetch the last N interactions from the database for the given
         // participantID and sort by time so they are in order for displaying
-        const interactions = await Interaction.find({ participantID }).sort({ timestamp: 1});
+        const interactions = await Interaction.find({ participantID })
+            .sort({ timestamp: -1 })
+            .limit(limit)
+            .sort({ timestamp: 1 });
         // Send the conversation history back to the client to display
         res.json({ interactions });
     } catch (error) {
@@ -185,13 +189,13 @@ app.post("/upload-document", upload.single("document") , async (req, res) => {
   }
   const processed = await documentProcessor.processDocument(req.file);
 
-  const chunkObjects = processed.chunks.map((text, index) => ({
+  const chunkObjects = processed.chunks.map((chunk, index) => ({
     chunkIndex: index,
-    text
+    text: chunk.text || chunk
   }));
 
   const chunksWithEmbeddings = await embeddingService.generateEmbeddings(chunkObjects);
-  
+
   await Document.create({
     filename: req.file.originalname,
     text: processed.fullText,

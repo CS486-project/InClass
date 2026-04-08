@@ -1,0 +1,9 @@
+This is a test document for the document upload system.
+
+It contains multiple paragraphs to test the chunking functionality.
+The document processor should extract this text, clean it, and split it into chunks.
+
+This is useful for testing Retrieval-Augmented Generation (RAG) systems.
+Each chunk will be stored separately in the MongoDB database.
+
+The system allows users to upload documents and then use them for enhanced chatbot responses.

@@ -1,0 +1,12 @@
+This is a test PDF document for the RAG system.
+
+This document contains sample content that will be processed by the document processor.
+It includes multiple paragraphs to test the chunking functionality.
+
+Key features of the RAG system:
+- Document upload and storage
+- Text extraction from PDF and TXT files
+- Text chunking for better retrieval
+- MongoDB storage with metadata
+
+This content will be extracted from the PDF and stored in the database for future retrieval-augmented generation tasks.
